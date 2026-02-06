@@ -12,12 +12,49 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldError,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { analyzeImage, submitAnswers, type AnalysisQuestion } from "@/lib/api";
+import { Loader2 } from "lucide-react";
 
 export default function DashboardPage() {
   const [image, setImage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [questionsOpen, setQuestionsOpen] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [questions, setQuestions] = useState<AnalysisQuestion[]>([]);
+  const [answers, setAnswers] = useState<Record<string, string | number>>({});
+  const [result, setResult] = useState<Record<string, unknown> | string | null>(
+    null
+  );
+
   const { user, isAuthenticated, signOut } = useAuth();
   const router = useRouter();
 
@@ -28,6 +65,7 @@ export default function DashboardPage() {
 
   const handleFile = (file: File | null) => {
     if (!file || !file.type.startsWith("image/")) return;
+    setError(null);
     const reader = new FileReader();
     reader.onload = () => setImage(reader.result as string);
     reader.readAsDataURL(file);
@@ -52,7 +90,100 @@ export default function DashboardPage() {
 
   const handleRemove = () => {
     setImage(null);
+    setResult(null);
+    setError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleAnalyze = async () => {
+    if (!image) return;
+    setIsAnalyzing(true);
+    setError(null);
+    try {
+      const data = await analyzeImage(image);
+      setSessionId(data.sessionId);
+      setQuestions(data.questions);
+      setAnswers(
+        Object.fromEntries(data.questions.map((q) => [q.id, ""]))
+      );
+      setQuestionsOpen(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Ошибка анализа");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleAnswerChange = (id: string, value: string | number) => {
+    setAnswers((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleSubmitAnswers = async () => {
+    if (!sessionId) return;
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const data = await submitAnswers(sessionId, answers);
+      setResult(
+        typeof data.result === "string" ? data.result : (data.result as Record<string, unknown>)
+      );
+      setQuestionsOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Ошибка отправки ответов");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const renderQuestion = (q: AnalysisQuestion) => {
+    if (q.type === "select" && q.options) {
+      return (
+        <Field key={q.id}>
+          <FieldLabel htmlFor={q.id}>{q.label}</FieldLabel>
+          <Select
+            value={String(answers[q.id] ?? "")}
+            onValueChange={(v) => handleAnswerChange(q.id, v)}
+          >
+            <SelectTrigger id={q.id}>
+              <SelectValue placeholder="Выберите..." />
+            </SelectTrigger>
+            <SelectContent>
+              {q.options.map((opt) => (
+                <SelectItem key={opt} value={opt}>
+                  {opt}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      );
+    }
+    if (q.type === "number") {
+      return (
+        <Field key={q.id}>
+          <FieldLabel htmlFor={q.id}>{q.label}</FieldLabel>
+          <Input
+            id={q.id}
+            type="number"
+            value={answers[q.id] ?? ""}
+            onChange={(e) =>
+              handleAnswerChange(q.id, e.target.value ? Number(e.target.value) : "")
+            }
+          />
+        </Field>
+      );
+    }
+    return (
+      <Field key={q.id}>
+        <FieldLabel htmlFor={q.id}>{q.label}</FieldLabel>
+        <Textarea
+          id={q.id}
+          value={String(answers[q.id] ?? "")}
+          onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+          rows={3}
+        />
+      </Field>
+    );
   };
 
   return (
@@ -79,7 +210,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full">
+      <main className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full gap-6">
         <Card className="w-full">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Phenotype analysis</CardTitle>
@@ -104,7 +235,23 @@ export default function DashboardPage() {
                     className="w-full h-full object-contain"
                   />
                 </div>
-                <div className="flex gap-2 justify-center">
+                {error && (
+                  <p className="text-sm text-destructive text-center">{error}</p>
+                )}
+                <div className="flex gap-2 justify-center flex-wrap">
+                  <Button
+                    onClick={handleAnalyze}
+                    disabled={isAnalyzing}
+                  >
+                    {isAnalyzing ? (
+                      <>
+                        <Loader2 className="size-4 mr-2 animate-spin" />
+                        Анализ...
+                      </>
+                    ) : (
+                      "Анализировать"
+                    )}
+                  </Button>
                   <Button
                     variant="outline"
                     onClick={() => fileInputRef.current?.click()}
@@ -156,7 +303,92 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+
+        {result && (
+          <Card className="w-full">
+            <CardHeader>
+              <CardTitle>Результат анализа</CardTitle>
+              <CardDescription>
+                Результаты на основе вашего фото и ответов
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {typeof result === "string" ? (
+                <p className="text-sm whitespace-pre-wrap">{result}</p>
+              ) : (
+                <div className="space-y-3 text-sm">
+                  {result.recommendations && Array.isArray(result.recommendations) ? (
+                    <div>
+                      <p className="font-medium mb-2">Рекомендации:</p>
+                      <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                        {(result.recommendations as string[]).map((r, i) => (
+                          <li key={i}>{r}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {result.summary ? (
+                    <p className="text-muted-foreground">{String(result.summary)}</p>
+                  ) : null}
+                  <pre className="text-xs bg-muted/50 p-3 rounded-md overflow-auto max-h-48">
+                    {JSON.stringify(result, null, 2)}
+                  </pre>
+                </div>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4"
+                onClick={() => setResult(null)}
+              >
+                Новый анализ
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </main>
+
+      <Dialog open={questionsOpen} onOpenChange={setQuestionsOpen}>
+        <DialogContent showCloseButton={false} className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Дополнительные вопросы</DialogTitle>
+            <DialogDescription>
+              Ответьте на несколько вопросов для более точного анализа
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSubmitAnswers();
+            }}
+            className="space-y-4"
+          >
+            <FieldGroup>{questions.map(renderQuestion)}</FieldGroup>
+            {error && (
+              <FieldError>{error}</FieldError>
+            )}
+            <DialogFooter showCloseButton={false}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setQuestionsOpen(false)}
+              >
+                Отмена
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="size-4 mr-2 animate-spin" />
+                    Отправка...
+                  </>
+                ) : (
+                  "Отправить"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
