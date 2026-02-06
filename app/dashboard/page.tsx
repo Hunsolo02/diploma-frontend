@@ -316,7 +316,25 @@ export default function DashboardPage() {
               {typeof result === "string" ? (
                 <p className="text-sm whitespace-pre-wrap">{result}</p>
               ) : (
-                <div className="space-y-3 text-sm">
+                <div className="space-y-4 text-sm">
+                  {result.phenotype ? (
+                    <div>
+                      <p className="font-medium mb-1">Фенотип</p>
+                      <p className="text-muted-foreground">{String(result.phenotype)}</p>
+                    </div>
+                  ) : null}
+                  {result.origin ? (
+                    <div>
+                      <p className="font-medium mb-1">Предположительное происхождение</p>
+                      <p className="text-muted-foreground">{String(result.origin)}</p>
+                    </div>
+                  ) : null}
+                  {result.concentration ? (
+                    <div>
+                      <p className="font-medium mb-1">Наибольшая концентрация</p>
+                      <p className="text-muted-foreground">{String(result.concentration)}</p>
+                    </div>
+                  ) : null}
                   {result.recommendations && Array.isArray(result.recommendations) ? (
                     <div>
                       <p className="font-medium mb-2">Рекомендации:</p>

@@ -22,12 +22,9 @@ export async function POST(request: Request) {
     // Example: const res = await fetch(`${BACKEND_URL}/analyze/answers`, { ... });
 
     const result = {
-      sessionId,
-      summary: "Анализ завершён",
-      recommendations: [
-        "Рекомендуется использовать SPF ежедневно",
-        "Увлажняющий крем утром и вечером",
-      ],
+      phenotype: "Медитерранид",
+      origin: "Результат стабилизации медитерраноидных и нордоидных типов.",
+      concentration: "Северная Испания, северная Франция, западная Германия, Бельгия, Нидерланды, Великобритания.",
       raw: answers,
     };
 
