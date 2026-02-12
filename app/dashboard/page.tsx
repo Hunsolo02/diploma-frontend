@@ -37,6 +37,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { analyzeImage, submitAnswers, type AnalysisQuestion } from "@/lib/api";
+import { addAnalysisEntry } from "@/lib/analysis-history";
 import { Loader2 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -124,10 +125,13 @@ export default function DashboardPage() {
     setError(null);
     try {
       const data = await submitAnswers(sessionId, answers);
-      setResult(
-        typeof data.result === "string" ? data.result : (data.result as Record<string, unknown>)
-      );
+      const resultData =
+        typeof data.result === "string" ? data.result : (data.result as Record<string, unknown>);
+      setResult(resultData);
       setQuestionsOpen(false);
+      if (user?.email) {
+        addAnalysisEntry(user.email, sessionId, data.result);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Ошибка отправки ответов");
     } finally {
@@ -190,12 +194,15 @@ export default function DashboardPage() {
     <div className="min-h-screen flex flex-col p-4 md:p-6">
       <header className="flex items-center justify-between mb-8">
         <p className="text-sm text-muted-foreground">
-          Signed in as{" "}
+          Вход:{" "}
           <span className="font-medium text-foreground">{user?.email}</span>
         </p>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" asChild>
-            <Link href="/">Home</Link>
+            <Link href="/profile">Личный кабинет</Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/">Главная</Link>
           </Button>
           <Button
             variant="outline"
@@ -205,7 +212,7 @@ export default function DashboardPage() {
               router.push("/");
             }}
           >
-            Sign out
+            Выйти
           </Button>
         </div>
       </header>

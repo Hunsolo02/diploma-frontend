@@ -18,6 +18,7 @@ type AuthContextType = {
   isAuthenticated: boolean;
   signIn: (email: string, password: string, name?: string) => void;
   signOut: () => void;
+  updateUser: (data: { name?: string }) => void;
 };
 
 const STORAGE_KEY = "auth-user";
@@ -59,6 +60,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const updateUser = useCallback((data: { name?: string }) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...data };
+      if (typeof window !== "undefined") {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      }
+      return next;
+    });
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -66,6 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: !!user,
         signIn,
         signOut,
+        updateUser,
       }}
     >
       {children}
