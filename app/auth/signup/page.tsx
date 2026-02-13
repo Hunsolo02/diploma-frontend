@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { validateEmail } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 const PASSWORD_MIN_LENGTH = 8;
 const PASSWORD_RULES = {
@@ -47,15 +48,18 @@ function validatePassword(password: string): string[] {
 
 export default function SignUpPage() {
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [passwordRepeat, setPasswordRepeat] = useState("");
   const [name, setName] = useState("");
   const [touched, setTouched] = useState({
     email: false,
+    username: false,
     password: false,
     passwordRepeat: false,
   });
-  const { signIn } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { signUp, error, clearError } = useAuth();
   const router = useRouter();
 
   const emailError = validateEmail(email);
@@ -69,18 +73,27 @@ export default function SignUpPage() {
       : null;
 
   const canSubmit =
-    name &&
-    emailValid &&
     email &&
+    emailValid &&
+    username.trim().length > 0 &&
     passwordValid &&
     passwordsMatch &&
-    passwordRepeat.length > 0;
+    passwordRepeat.length > 0 &&
+    !isSubmitting;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
-    signIn(email, password, name);
-    router.push("/dashboard");
+    clearError();
+    setIsSubmitting(true);
+    try {
+      await signUp(email, username.trim(), password, name.trim() || undefined);
+      router.push("/dashboard");
+    } catch {
+      // Error is shown via auth context
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -103,7 +116,6 @@ export default function SignUpPage() {
                   placeholder="John Doe"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  required
                 />
               </Field>
               <Field>
@@ -120,6 +132,21 @@ export default function SignUpPage() {
                 {touched.email && emailError && (
                   <FieldError>{emailError}</FieldError>
                 )}
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="signup-username">Username</FieldLabel>
+                <FieldDescription>
+                  Unique login for signing in
+                </FieldDescription>
+                <Input
+                  id="signup-username"
+                  type="text"
+                  placeholder="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  onBlur={() => setTouched((t) => ({ ...t, username: true }))}
+                  autoComplete="username"
+                />
               </Field>
               <Field>
                 <FieldLabel htmlFor="signup-password">Password</FieldLabel>
@@ -162,6 +189,9 @@ export default function SignUpPage() {
                   <FieldError>{passwordRepeatError}</FieldError>
                 )}
               </Field>
+              {error && (
+                <FieldError>{error}</FieldError>
+              )}
             </FieldGroup>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
@@ -171,7 +201,14 @@ export default function SignUpPage() {
               size="lg"
               disabled={!canSubmit}
             >
-              Sign up
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                  Creating account...
+                </>
+              ) : (
+                "Sign up"
+              )}
             </Button>
             <div className="flex items-center gap-2 w-full">
               <Separator className="flex-1" />

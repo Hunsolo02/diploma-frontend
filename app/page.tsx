@@ -6,9 +6,16 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 
 export default function HomePage() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
   if (isAuthenticated && user) {
     router.replace("/dashboard");
     return null;

@@ -16,24 +16,30 @@ import { Field, FieldGroup, FieldLabel, FieldError } from "@/components/ui/field
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { validateEmail } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 export default function SignInPage() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [emailTouched, setEmailTouched] = useState(false);
-  const { signIn } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { signIn, error, clearError } = useAuth();
   const router = useRouter();
 
-  const emailError = validateEmail(email);
-  const emailValid = !emailError;
-  const canSubmit = emailValid && password.length > 0;
+  const canSubmit = username.trim().length > 0 && password.length > 0 && !isSubmitting;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
-    signIn(email, password);
-    router.push("/dashboard");
+    clearError();
+    setIsSubmitting(true);
+    try {
+      await signIn(username.trim(), password);
+      router.push("/dashboard");
+    } catch {
+      // Error is shown via auth context
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -49,19 +55,16 @@ export default function SignInPage() {
           <CardContent className="space-y-4">
             <FieldGroup>
               <Field>
-                <FieldLabel htmlFor="signin-email">Email</FieldLabel>
+                <FieldLabel htmlFor="signin-username">Username</FieldLabel>
                 <Input
-                  id="signin-email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onBlur={() => setEmailTouched(true)}
-                  aria-invalid={emailTouched && !!emailError}
+                  id="signin-username"
+                  type="text"
+                  placeholder="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  autoComplete="username"
+                  aria-invalid={!!error}
                 />
-                {emailTouched && emailError && (
-                  <FieldError>{emailError}</FieldError>
-                )}
               </Field>
               <Field>
                 <FieldLabel htmlFor="signin-password">Password</FieldLabel>
@@ -71,9 +74,13 @@ export default function SignInPage() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
                   required
                 />
               </Field>
+              {error && (
+                <FieldError>{error}</FieldError>
+              )}
             </FieldGroup>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
@@ -83,7 +90,14 @@ export default function SignInPage() {
               size="lg"
               disabled={!canSubmit}
             >
-              Sign in
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                "Sign in"
+              )}
             </Button>
             <div className="flex items-center gap-2 w-full">
               <Separator className="flex-1" />

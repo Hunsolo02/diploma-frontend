@@ -16,6 +16,19 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Backend configuration
+
+To connect the frontend to your backend API:
+
+1. Copy `.env.example` to `.env.local`:
+   ```bash
+   cp .env.example .env.local
+   ```
+2. Set `NEXT_PUBLIC_API_URL` to your backend base URL (e.g. `http://localhost:8000`).
+3. Ensure your backend is running and CORS allows the frontend origin (e.g. `http://localhost:3000`).
+
+The frontend expects the API described in `API.md` (auth, analyze, regions, phenotypes, etc.).
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
